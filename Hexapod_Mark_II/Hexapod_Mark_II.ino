@@ -27,8 +27,15 @@ int multiplier;
 #define TOP_SPEED      12
 #endif
 
+const int BUZZER_PIN = 1;
+unsigned long lastLTTime;
+
 void setup(){
   pinMode(0,OUTPUT);
+
+
+  
+ 
   // setup IK
   setupIK();
   gaitSelect(AMBLE_SMOOTH);
@@ -37,13 +44,25 @@ void setup(){
 
   // wait, then check the voltage (LiPO safety)
   delay (1000);
-  float voltage = (ax12GetRegister (1, AX_PRESENT_VOLTAGE, 1)) / 10.0;
+  float voltage = (ax12GetRegister (2, AX_PRESENT_VOLTAGE, 1)) / 10.0;
   Serial.print ("System Voltage: ");
   Serial.print (voltage);
   Serial.println (" volts.");
   if (voltage < 10.0)
-    while(1);
+  {
+    while(1)
+    {
+      tone(BUZZER_PIN, 2000, 500);
+      delay(250);
+      noTone(BUZZER_PIN);
+      delay(250);
+    }
+  }
+  
 
+  
+  
+  
   // stand up slowly
   bioloid.poseSize = 18;
   bioloid.readPose();
@@ -54,6 +73,13 @@ void setup(){
     delay(3);
   }
   multiplier = AMBLE_SPEED;
+  
+  
+  
+  tone(BUZZER_PIN, 900, 300);
+  delay(300);
+  tone(BUZZER_PIN, 4000, 250);
+  delay(250);
 }
 
 void loop(){
@@ -85,6 +111,17 @@ void loop(){
       gaitSelect(TRIPOD); 
       multiplier=TOP_SPEED;
     }
+    
+    if(command.buttons&BUT_LT){
+     if(millis() - lastLTTime > 1000)
+     {  
+      dxlScanServos(18);
+      lastLTTime = millis();
+     }
+    }
+    
+    
+    
     // set movement speed
     if((command.walkV) > 5 || (command.walkV < -5) ){
       Xspeed = (multiplier*command.walkV)/2;
@@ -131,3 +168,79 @@ void loop(){
   // update joints
   bioloid.interpolateStep();
 }
+
+
+
+
+
+
+
+
+int dxlScanServos(int numberOfServos)
+{
+
+    int pos;            //holds the positional value of the servo. This is arbitrary as we'll be discarding this value - we're just using it to check if the servo is present
+
+    int missingServos = 0;    //number of servos that could not be contacted
+    int foundServos = 0;    //number of servos that could not be contacted
+
+    for(int i = 0; i <= numberOfServos ; i++)
+    {
+        pos =  ax12GetRegister(i, 36, 2);
+        int errorBit = ax12GetLastError();
+
+
+        //if there is no data, retry once
+        if (pos <= 0)
+        {
+           delay(500);  //short delay to clear the bus
+           pos =  ax12GetRegister(i, 36, 2);
+           int errorBit = ax12GetLastError();
+        }
+
+        //if there is still no data add one to the missing servos.
+        if (pos <= 0)
+        {
+            missingServos = missingServos + 1;
+           // returnList[i] = -1;
+        }
+        else
+        {
+            foundServos = foundServos + 1;
+           // returnList[i] = errorBit;
+        }
+    }
+    
+
+  
+  Serial.print ("Servos Found:  ");
+  Serial.println (foundServos);
+  
+  
+  if(foundServos < 18)
+  {
+    
+    for(int i = 1; i <= 5; i++)
+    {
+      tone(BUZZER_PIN, 1000, 500);
+      delay(500);
+      noTone(BUZZER_PIN);
+      
+    }
+    
+  }
+  
+  else if(foundServos == 18)
+  {
+      tone(BUZZER_PIN, 900, 500);
+      delay(500);
+      tone(BUZZER_PIN, 2000, 500);
+      delay(500);
+      noTone(BUZZER_PIN);
+      
+  }
+  
+    return(foundServos);
+}
+
+
