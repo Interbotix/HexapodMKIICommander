@@ -183,13 +183,19 @@ int dxlScanServos(int numberOfServos)
 
     int missingServos = 0;    //number of servos that could not be contacted
     int foundServos = 0;    //number of servos that could not be contacted
-
+    
+    bool errorFound = false;
+    
     for(int i = 0; i <= numberOfServos ; i++)
     {
         pos =  ax12GetRegister(i, 36, 2);
         int errorBit = ax12GetLastError();
 
-
+        if(errorBit != 0)
+        {
+          errorFound = true;
+        }
+        
         //if there is no data, retry once
         if (pos <= 0)
         {
@@ -216,11 +222,23 @@ int dxlScanServos(int numberOfServos)
   Serial.print ("Servos Found:  ");
   Serial.println (foundServos);
   
+  if(errorFound = true)
+  {
+ 
+    for(int i = 1; i <= 4; i++)
+    {
+      tone(BUZZER_PIN, 1000, 500);
+      delay(500);
+      noTone(BUZZER_PIN);
+      
+    }
+      
+  }
   
-  if(foundServos < 18)
+  else if(foundServos < 18)
   {
     
-    for(int i = 1; i <= 5; i++)
+    for(int i = 1; i <= 3; i++)
     {
       tone(BUZZER_PIN, 1000, 500);
       delay(500);
@@ -239,6 +257,7 @@ int dxlScanServos(int numberOfServos)
       noTone(BUZZER_PIN);
       
   }
+  
   
     return(foundServos);
 }
