@@ -63,7 +63,109 @@ ik_req_t DefaultGaitGen(int leg){
   return gaits[leg];
 }
 
+//all of these intermediate functions are needed because of a weird AVR-GCC error that leads to 'exit status 1 unable to find a register to spill in class 'POINTER_REGS'
+
+void legMidUp(int leg)
+{
+  
+      // leg up, halfway to middle
+      gaits[leg].x = gaits[leg].x/2;
+      gaits[leg].y = gaits[leg].y/2;
+      gaits[leg].z = -liftHeight/2;
+      gaits[leg].r = gaits[leg].r/2;
+}
+void legUp(int leg)
+{
+  
+      // leg up position
+      gaits[leg].x = 0;
+      gaits[leg].y = 0;
+      gaits[leg].z = -liftHeight;
+      gaits[leg].r = 0;
+}
+void legMidDown(int leg)
+{
+  
+      // leg halfway down                                
+      gaits[leg].x = (Xspeed*cycleTime*pushSteps)/(4*stepsInCycle);
+      gaits[leg].y = (Yspeed*cycleTime*pushSteps)/(4*stepsInCycle);  
+      gaits[leg].z = -liftHeight/2;                                             
+      gaits[leg].r = (Rspeed*cycleTime*pushSteps)/(4*stepsInCycle); 
+}
+void legDown(int leg)
+{
+  
+      // leg down position                                           NOTE: dutyFactor = pushSteps/StepsInCycle
+      gaits[leg].x = (Xspeed*cycleTime*pushSteps)/(2*stepsInCycle);     // travel/Cycle = speed*cycleTime
+      gaits[leg].y = (Yspeed*cycleTime*pushSteps)/(2*stepsInCycle);     // Stride = travel/Cycle * dutyFactor
+      gaits[leg].z = 0;                                                 //   = speed*cycleTime*pushSteps/stepsInCycle
+      gaits[leg].r = (Rspeed*cycleTime*pushSteps)/(2*stepsInCycle);     //   we move Stride/2 here
+}
+
+void legForward(int leg)
+{
+      // move body forward
+      gaits[leg].x = gaits[leg].x - (Xspeed*cycleTime)/stepsInCycle;    // note calculations for Stride above
+      gaits[leg].y = gaits[leg].y - (Yspeed*cycleTime)/stepsInCycle;    // we have to move Stride/pushSteps here
+      gaits[leg].z = 0;                                                 //   = speed*cycleTime*pushSteps/stepsInCycle*pushSteps
+      gaits[leg].r = gaits[leg].r - (Rspeed*cycleTime)/stepsInCycle;    //   = speed*cycleTime/stepsInCycle
+}
+
+//modified functions are needed because of a weird AVR-GCC error that leads to 'exit status 1 unable to find a register to spill in class 'POINTER_REGS'
+//Basically, there's a register problem with certain variables. Last tracked to Yspeed and Rspeed in legMidDown
+//A fix seems to be using intermdiate functions and resturucturing the if() statements - that's why they look weird
+//and have so many returns()
+
+//original function is commented out later
 /* Smoother, slower gait. Legs will make a arc stroke. */
+ik_req_t SmoothGaitGen(int leg){
+  if( MOVING )
+  {
+    // are we moving?
+    if(step == gaitLegNo[leg])
+    {
+      // leg up, halfway to middle
+      legMidUp(leg);
+      return gaits[leg];
+    }
+    if((step == gaitLegNo[leg]+1) && (gaits[leg].z < 0))
+    {
+      // leg up position
+      legUp(leg);
+      return gaits[leg];
+
+    }
+    if((step == gaitLegNo[leg] + 2) && (gaits[leg].z < 0))
+    {
+      // leg halfway down                                
+      legMidDown(leg);
+      return gaits[leg];
+
+    }
+    if((step == gaitLegNo[leg]+3) && (gaits[leg].z < 0))
+    {
+      // leg down position                                           NOTE: dutyFactor = pushSteps/StepsInCycle
+      legDown(leg);
+      return gaits[leg];
+    }
+    else
+    {
+      // move body forward
+      legForward(leg);
+      return gaits[leg];
+    }
+  }
+  else
+  { // stopped
+    gaits[leg].z = 0;
+  }
+  return gaits[leg];
+}
+
+
+
+/* Smoother, slower gait. Legs will make a arc stroke. */
+/*
 ik_req_t SmoothGaitGen(int leg){
   if( MOVING ){
     // are we moving?
@@ -83,7 +185,7 @@ ik_req_t SmoothGaitGen(int leg){
       // leg halfway down                                
       gaits[leg].x = (Xspeed*cycleTime*pushSteps)/(4*stepsInCycle);
       gaits[leg].y = (Yspeed*cycleTime*pushSteps)/(4*stepsInCycle);  
-      gaits[leg].z = -liftHeight/2;                                             
+      gaits[leg].z = -liftHeight/2;                                                                                    
       gaits[leg].r = (Rspeed*cycleTime*pushSteps)/(4*stepsInCycle); 
     }else if((step == gaitLegNo[leg]+3) && (gaits[leg].z < 0)){
       // leg down position                                           NOTE: dutyFactor = pushSteps/StepsInCycle
@@ -103,6 +205,7 @@ ik_req_t SmoothGaitGen(int leg){
   }
   return gaits[leg];
 }
+*/
 
 int currentGait = -1;
 
@@ -181,3 +284,4 @@ ik_req_t (*gaitGen)(int leg) = &DefaultGaitGen;
 void (*gaitSetup)() = &DefaultGaitSetup;
 
 #endif
+
